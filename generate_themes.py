@@ -106,26 +106,26 @@ DARK_PALETTES = {
         "ACCENT_PRI": "#C1121F", "ACCENT_SEC": "#FFC300", "ACCENT_TER": "#3A86FF", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#E09F3E", "ERROR":      "#D62828",
     },
     "Purple": {
-        "BG_DEEP":    "#22223B", "BG_EDITOR":  "#2B2D42", "BG_MID":     "#4A4E69", "FG_MUTED":   "#8D99AE",
-        "ACCENT_PRI": "#EF233C", "ACCENT_SEC": "#FCBF49", "ACCENT_TER": "#3A86FF", "ACCENT_QUA": "#61A5C2", "ACCENT_OP":  "#F77F00", "ERROR":      "#D80032",
+        "BG_DEEP":    "#3D348B", "BG_EDITOR":  "#4A3FA3", "BG_MID":     "#7678ED", "FG_MUTED":   "#B6A0FF",
+        "ACCENT_PRI": "#F35B04", "ACCENT_SEC": "#F7B801", "ACCENT_TER": "#7678ED", "ACCENT_QUA": "#4CC9F0", "ACCENT_OP":  "#F18701", "ERROR":      "#D62828",
     },
     "Green": {
-        "BG_DEEP":    "#132A13", "BG_EDITOR":  "#1B4332", "BG_MID":     "#2D6A4F", "FG_MUTED":   "#74C69D",
-        "ACCENT_PRI": "#BC4749", "ACCENT_SEC": "#E9C46A", "ACCENT_TER": "#38A3A5", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#F77F00", "ERROR":      "#9E2A2B",
+        "BG_DEEP":    "#001219", "BG_EDITOR":  "#005F73", "BG_MID":     "#0A9396", "FG_MUTED":   "#94D2BD",
+        "ACCENT_PRI": "#EE9B00", "ACCENT_SEC": "#E9D8A6", "ACCENT_TER": "#0A9396", "ACCENT_QUA": "#94D2BD", "ACCENT_OP":  "#CA6702", "ERROR":      "#9B2226",
     },
     "Blue": {
-        "BG_DEEP":    "#0D1B2A", "BG_EDITOR":  "#1B263B", "BG_MID":     "#415A77", "FG_MUTED":   "#778DA9",
-        "ACCENT_PRI": "#C1121F", "ACCENT_SEC": "#FCA311", "ACCENT_TER": "#00B4D8", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#F77F00", "ERROR":      "#D00000",
+        "BG_DEEP":    "#001D3D", "BG_EDITOR":  "#003566", "BG_MID":     "#014F86", "FG_MUTED":   "#8ECAE6",
+        "ACCENT_PRI": "#E63946", "ACCENT_SEC": "#FFB703", "ACCENT_TER": "#0077B6", "ACCENT_QUA": "#48CAE4", "ACCENT_OP":  "#FB8500", "ERROR":      "#D80032",
     },
     "Gray": {
-        "BG_DEEP":    "#0B0F14", "BG_EDITOR":  "#141A23", "BG_MID":     "#212833", "FG_MUTED":   "#6C757D",
-        "ACCENT_PRI": "#D62828", "ACCENT_SEC": "#FFC300", "ACCENT_TER": "#3A86FF", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#FCA311", "ERROR":      "#C1121F",
+        "BG_DEEP":    "#2B2D42", "BG_EDITOR":  "#343A40", "BG_MID":     "#495057", "FG_MUTED":   "#8D99AE",
+        "ACCENT_PRI": "#FF595E", "ACCENT_SEC": "#EDF2F4", "ACCENT_TER": "#0077B6", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#E63946", "ERROR":      "#E63946",
     },
 }
 
 LIGHT_ACCENT_COLORS = {
     "Orange":  "#FFE6D5", "Red":     "#FDF0D5", "Yellow":  "#F7E8D1",
-    "Purple":  "#F2E9E4", "Green":   "#D8F3DC", "Blue":    "#E0E1DD", "Gray":    "#E5E5E5",
+    "Purple":  "#E0AAFF", "Green":   "#94D2BD", "Blue":    "#F1FAEE", "Gray":    "#EDF2F4",
 }
 
 
