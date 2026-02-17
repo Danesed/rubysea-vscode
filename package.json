@@ -1,9 +1,9 @@
 {
-  "name": "rubysea-vscode",
-  "displayName": "Ruby Sea",
-  "description": "A minimal, dark theme for VS Code with vibrant red and blue accents.",
+  "name": "color-sea",
+  "displayName": "Color Sea",
+  "description": "A collection of vibrant, deep dark themes for VS Code.",
   "version": "1.0.6",
-  "publisher": "barkerbg001",
+  "publisher": "danilodanese",
   "icon": "images/logo.png",
   "author": {
     "name": "Barkerbg001",
@@ -11,13 +11,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/barkerbg001/Ruby-Sea"
+    "url": "https://github.com/danilodanese/color-sea"
   },
   "bugs": {
-    "url": "https://github.com/barkerbg001/Ruby-Sea/issues",
+    "url": "https://github.com/danilodanese/color-sea/issues",
     "email": "barkerbg001+vscode@gmail.com"
   },
-  "homepage": "https://github.com/barkerbg001/Ruby-Sea/blob/master/README.md",
+  "homepage": "https://github.com/danilodanese/color-sea/blob/main/README.md",
   "galleryBanner": {
     "color": "#0e1b2a",
     "theme": "dark"
@@ -37,9 +37,39 @@
   "contributes": {
     "themes": [
       {
-        "label": "Ruby Sea",
+        "label": "Color Sea Orange",
         "uiTheme": "vs-dark",
-        "path": "./themes/rubysea-color-theme.json"
+        "path": "./themes/color-sea-orange.json"
+      },
+      {
+        "label": "Color Sea Red",
+        "uiTheme": "vs-dark",
+        "path": "./themes/color-sea-red.json"
+      },
+      {
+        "label": "Color Sea Yellow",
+        "uiTheme": "vs-dark",
+        "path": "./themes/color-sea-yellow.json"
+      },
+      {
+        "label": "Color Sea Purple",
+        "uiTheme": "vs-dark",
+        "path": "./themes/color-sea-purple.json"
+      },
+      {
+        "label": "Color Sea Green",
+        "uiTheme": "vs-dark",
+        "path": "./themes/color-sea-green.json"
+      },
+      {
+        "label": "Color Sea Blue",
+        "uiTheme": "vs-dark",
+        "path": "./themes/color-sea-blue.json"
+      },
+      {
+        "label": "Color Sea Gray",
+        "uiTheme": "vs-dark",
+        "path": "./themes/color-sea-gray.json"
       }
     ]
   },
