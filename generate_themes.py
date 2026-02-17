@@ -18,13 +18,11 @@ EXTENSION_NAME = "color-sea"
 DISPLAY_NAME   = "Color Sea"
 REPO_URL       = "https://github.com/danilodanese/color-sea"  # Update this!
 
-# Global darkening level (higher = darker backgrounds)
-BG_DARKEN = 6 
 
 # Lightness targets for consistent deep dark backgrounds
 TARGET_L_DEEP   = 10     # Sidebar / Panel
-TARGET_L_EDITOR = 10    # Main Editor
-TARGET_L_MID    = 12    # Selections
+TARGET_L_EDITOR = 12    # Main Editor
+TARGET_L_MID    = 14    # Selections
 
 # ─────────────────────────────────────────────────────────────
 #  SOURCE THEME COLOR MAP (Ruby Sea template)
