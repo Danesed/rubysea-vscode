@@ -2,7 +2,7 @@
   "name": "color-sea",
   "displayName": "Color Sea",
   "description": "A collection of vibrant, deep dark themes for VS Code.",
-  "version": "1.0.6",
+  "version": "1.0.0",
   "publisher": "danesed",
   "icon": "images/logo.png",
   "author": "Danilo Danese",
@@ -33,6 +33,12 @@
     "editor-theme",
     "color-sea"
   ],
+  "scripts": {
+    "generate:themes": "PYTHONDONTWRITEBYTECODE=1 python3 generate_themes.py",
+    "vscode:prepublish": "npm run generate:themes",
+    "package:vsix": "npx vsce package",
+    "publish:marketplace": "npx vsce publish"
+  },
   "contributes": {
     "themes": [
       {

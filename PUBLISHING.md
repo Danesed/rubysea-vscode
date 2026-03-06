@@ -28,8 +28,7 @@ npx vsce login danesed
 
 ```bash
 npm install
-PYTHONDONTWRITEBYTECODE=1 python3 generate_themes.py
-npx vsce package
+npm run package:vsix
 ```
 
 Then install the generated `.vsix` locally and verify:
@@ -38,6 +37,7 @@ Then install the generated `.vsix` locally and verify:
 - the new icon is visible
 - the publisher is `danesed`
 - the Marketplace metadata points to `colorsea-vscode`
+- the preview images in `README.md` resolve from the public GitHub repo
 
 ## Publish
 
