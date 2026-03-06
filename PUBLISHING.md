@@ -1,70 +1,70 @@
-# How to Publish "Color Sea"
+# Publishing
 
-Since this is now a new extension (no longer "Ruby Sea"), you need to publish it under your own publisher ID.
+This repo is prepared to ship as:
 
-## 1. Prerequisites
+- extension name: `color-sea`
+- display name: `Color Sea`
+- publisher: `danesed`
+- repository: `https://github.com/danesed/colorsea-vscode`
 
-1. **Install `vsce`** (Visual Studio Code Extensions CLI):
+## Before Publishing
 
-   ```bash
-   npm install -g @vscode/vsce
-   ```
+- replace `images/logo.png` with the final icon
+- confirm the Marketplace publisher `danesed` exists
+- confirm `danesed.color-sea` is the extension ID you want to keep long term
+- keep the dual copyright notice in `LICENSE`
 
-2. **Create a Publisher Account**:
-   - Go to [marketplace.visualstudio.com](https://marketplace.visualstudio.com/manage)
-   - Log in with your Microsoft/GitHub account.
-   - Click **"Create Publisher"**.
-   - **Important**: The ID you choose *must* match the `publisher` field in `package.json` (currently set to `danilodanese`). If you chose a different ID, update `package.json`!
+## Marketplace Setup
 
-3. **Get a Personal Access Token (PAT)**:
-   - Go to [Azure DevOps](https://dev.azure.com/).
-   - Click **User Settings** (top right) → **Personal Access Tokens**.
-   - Create a new token:
-     - **Name**: `vsce`
-     - **Organization**: `All accessible organizations`
-     - **Scopes**: Select **Custom defined** → **Marketplace** → check **Acquire** and **Manage**.
-   - **Copy the token** (you won't see it again).
-
-## 2. Login
-
-Run this command in your terminal:
+1. Create or confirm the publisher at [Visual Studio Marketplace](https://marketplace.visualstudio.com/manage).
+2. Create an Azure DevOps Personal Access Token with Marketplace `Acquire` and `Manage`.
+3. Log in:
 
 ```bash
-vsce login <publisher-id>
+npx vsce login danesed
 ```
 
-(Replace `<publisher-id>` with `danilodanese` or your chosen ID).
-Paste your Personal Access Token when prompted.
-
-## 3. Package & Publish
-
-### To create a local VSIX file (for testing)
+## Build and Check
 
 ```bash
-vsce package
+npm install
+PYTHONDONTWRITEBYTECODE=1 python3 generate_themes.py
+npx vsce package
 ```
 
-This creates `color-sea-1.0.6.vsix`. You can drag-and-drop this into VS Code extensions view to install locally.
+Then install the generated `.vsix` locally and verify:
 
-### To publish to the Marketplace
+- all seven themes appear
+- the new icon is visible
+- the publisher is `danesed`
+- the Marketplace metadata points to `colorsea-vscode`
+
+## Publish
 
 ```bash
-vsce publish
+npx vsce publish
 ```
 
-This uploads the extension to the store. It usually takes 5-10 minutes to verify and appear live.
-
-### Boosting Version
-
-When you make changes, update version in `package.json` (e.g., `1.0.7`) or run:
+For later patch releases:
 
 ```bash
-vsce publish patch
+npx vsce publish patch
 ```
 
----
+## Fresh Git Repo
 
-## Troubleshooting
+If you want a clean repo with no inherited history:
 
-- **Error: "Publisher '...' not found"**: You haven't created the publisher on the Marketplace website yet.
-- **Error: "401 Unauthorized"**: Your PAT token is invalid or expired. Create a new one.
+```bash
+mkdir ../colorsea-vscode
+rsync -a --exclude '.git' --exclude 'node_modules' ./ ../colorsea-vscode/
+cd ../colorsea-vscode
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin git@github.com:danesed/colorsea-vscode.git
+git push -u origin main
+```
+
+Do that only after the icon is in place and you are satisfied with the final metadata.

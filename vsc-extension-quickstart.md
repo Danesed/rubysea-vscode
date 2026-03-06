@@ -4,7 +4,8 @@
 * This folder contains all of the files necessary for your color theme extension.
 * `package.json` - this is the manifest file that defines the location of the theme file.
 and specifies the base theme of the theme.
-* `themes/rubysea-color-theme.json` - the color theme definition file.
+* `themes/color-sea-template.json` - the template used to generate the theme variants.
+* `themes/color-sea-*.json` - the generated color theme definition files.
 
 ## Get up and running straight away
 * Press `F5` to open a new window with your extension loaded.
@@ -14,7 +15,8 @@ and specifies the base theme of the theme.
 ## Make changes
 * You can relaunch the extension from the debug toolbar after making changes to the files listed above.
 * You can also reload (`Ctrl+R` or `Cmd+R` on Mac) the VS Code window with your extension to load your changes.
-* When editing workbench colors, it's easiest to test the colors in the settings under `workbench.colorCustomizations` and `workbench.tokenColorCustomizations`. When done, run the `Generate Color Theme From Current Settings` command to generate an updated content for the color theme definition file.
+* When editing workbench colors, it's easiest to test the colors in the settings under `workbench.colorCustomizations` and `workbench.tokenColorCustomizations`.
+* In this repo, permanent theme changes should go through `generate_themes.py`, then regenerate `themes/color-sea-*.json`.
 
 ## Adopt your theme to Visual Studio Code
 * The token colorization is done based on standard TextMate themes. Colors are matched against one or more scopes.

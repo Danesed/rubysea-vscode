@@ -3,21 +3,18 @@
   "displayName": "Color Sea",
   "description": "A collection of vibrant, deep dark themes for VS Code.",
   "version": "1.0.6",
-  "publisher": "danilodanese",
+  "publisher": "danesed",
   "icon": "images/logo.png",
-  "author": {
-    "name": "Barkerbg001",
-    "email": "barkerbg001+vscode@gmail.com"
-  },
+  "author": "Danilo Danese",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/danilodanese/color-sea"
+    "url": "https://github.com/danesed/colorsea-vscode"
   },
   "bugs": {
-    "url": "https://github.com/danilodanese/color-sea/issues",
-    "email": "barkerbg001+vscode@gmail.com"
+    "url": "https://github.com/danesed/colorsea-vscode/issues"
   },
-  "homepage": "https://github.com/danilodanese/color-sea/blob/main/README.md",
+  "homepage": "https://github.com/danesed/colorsea-vscode/blob/main/README.md",
   "galleryBanner": {
     "color": "#0e1b2a",
     "theme": "dark"
@@ -32,7 +29,9 @@
     "Themes",
     "Dark Theme",
     "color-theme",
-    "Ruby Sea"
+    "vscode-theme",
+    "editor-theme",
+    "color-sea"
   ],
   "contributes": {
     "themes": [

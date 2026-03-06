@@ -1,31 +1,26 @@
 #!/usr/bin/env python3
 """
-Generate "Color Sea" VSCode theme variants. 
+Generate VS Code theme variants from a neutral template.
 
-Refactored from Ruby Sea. Now generates standalone themes into the `themes/` directory.
+The generator keeps the shared Color Sea surface relationships while allowing each variant to define its own accent roles.
 """
 
 import json
 import os
 import re
 import colorsys
+import math
 
 # ─────────────────────────────────────────────────────────────
 #  CONFIGURATION
 # ─────────────────────────────────────────────────────────────
-PUBLISHER_NAME = "danilodanese"  # Change this to your actual publisher ID
+PUBLISHER_NAME = "danesed"
 EXTENSION_NAME = "color-sea"
 DISPLAY_NAME   = "Color Sea"
-REPO_URL       = "https://github.com/danilodanese/color-sea"  # Update this!
-
-
-# Lightness targets for consistent deep dark backgrounds
-TARGET_L_DEEP   = 10     # Sidebar / Panel
-TARGET_L_EDITOR = 12    # Main Editor
-TARGET_L_MID    = 14    # Selections
+REPO_URL       = "https://github.com/danesed/colorsea-vscode"
 
 # ─────────────────────────────────────────────────────────────
-#  SOURCE THEME COLOR MAP (Ruby Sea template)
+#  TEMPLATE COLOR ROLE MAP
 # ─────────────────────────────────────────────────────────────
 SOURCE_COLORS = {
     "BG_DEEP":      "#0e1b2a",
@@ -73,91 +68,426 @@ def set_lightness(hex_color, target_l):
     h, s, l = hex_to_hsl(hex_color)
     return hsl_to_hex(h, s, target_l)
 
-def derive_fg_main(bg_editor_hex):
-    h, s, l = hex_to_hsl(bg_editor_hex)
-    return hsl_to_hex(h, max(8, s * 0.20), 72)
+def clamp(value, low, high):
+    return max(low, min(high, value))
 
-def derive_fg_bright(bg_editor_hex):
-    h, s, l = hex_to_hsl(bg_editor_hex)
-    return hsl_to_hex(h, max(12, s * 0.35), 87)
+def shift_hue(hue, delta):
+    return (hue + delta) % 360
 
-def derive_shadow(bg_deep_hex):
-    h, s, l = hex_to_hsl(bg_deep_hex)
-    return hsl_to_hex(h, s * 0.5, max(0, l - 4))
+def signed_hue_delta(start, end):
+    return (end - start + 540) % 360 - 180
 
-def derive_ansi_dim(bg_editor_hex):
-    h, s, l = hex_to_hsl(bg_editor_hex)
-    return hsl_to_hex(h, max(8, s * 0.25), 28)
+def hue_distance(start, end):
+    return abs(signed_hue_delta(start, end))
+
+def srgb_channel_to_linear(channel):
+    value = channel / 255.0
+    if value <= 0.04045:
+        return value / 12.92
+    return ((value + 0.055) / 1.055) ** 2.4
+
+def relative_luminance(hex_color):
+    r, g, b = hex_to_rgb(hex_color)
+    red = srgb_channel_to_linear(r)
+    green = srgb_channel_to_linear(g)
+    blue = srgb_channel_to_linear(b)
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+def contrast_ratio(color_a, color_b):
+    lighter = max(relative_luminance(color_a), relative_luminance(color_b))
+    darker = min(relative_luminance(color_a), relative_luminance(color_b))
+    return (lighter + 0.05) / (darker + 0.05)
+
+def rgb_to_oklab(hex_color):
+    red, green, blue = hex_to_rgb(hex_color)
+    red = srgb_channel_to_linear(red)
+    green = srgb_channel_to_linear(green)
+    blue = srgb_channel_to_linear(blue)
+
+    l = 0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue
+    m = 0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue
+    s = 0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue
+
+    l_root = l ** (1 / 3)
+    m_root = m ** (1 / 3)
+    s_root = s ** (1 / 3)
+
+    return (
+        0.2104542553 * l_root + 0.7936177850 * m_root - 0.0040720468 * s_root,
+        1.9779984951 * l_root - 2.4285922050 * m_root + 0.4505937099 * s_root,
+        0.0259040371 * l_root + 0.7827717662 * m_root - 0.8086757660 * s_root,
+    )
+
+def oklab_delta(color_a, color_b):
+    light_a, a_a, b_a = rgb_to_oklab(color_a)
+    light_b, a_b, b_b = rgb_to_oklab(color_b)
+    chroma_a = (a_a * a_a + b_a * b_a) ** 0.5
+    chroma_b = (a_b * a_b + b_b * b_b) ** 0.5
+    hue_a = math.atan2(b_a, a_a)
+    hue_b = math.atan2(b_b, a_b)
+    diff = abs(hue_a - hue_b)
+    if diff > math.pi:
+        diff = (2 * math.pi) - diff
+    return (
+        abs(light_a - light_b),
+        abs(chroma_a - chroma_b),
+        diff * 180 / math.pi,
+    )
 
 # ─────────────────────────────────────────────────────────────
-#  PALETTES
+#  ROLE MODEL + PALETTES
 # ─────────────────────────────────────────────────────────────
-DARK_PALETTES = {
+REFERENCE_HSL = {name: hex_to_hsl(value) for name, value in SOURCE_COLORS.items()}
+
+RUBY_SURFACE_MODEL = {
+    "deep_lightness": REFERENCE_HSL["BG_DEEP"][2],
+    "deep_saturation_cap": REFERENCE_HSL["BG_DEEP"][1],
+    "editor_hue_shift": signed_hue_delta(REFERENCE_HSL["BG_DEEP"][0], REFERENCE_HSL["BG_EDITOR"][0]),
+    "editor_saturation_delta": REFERENCE_HSL["BG_EDITOR"][1] - REFERENCE_HSL["BG_DEEP"][1],
+    "editor_lightness": REFERENCE_HSL["BG_EDITOR"][2],
+    "mid_hue_shift": signed_hue_delta(REFERENCE_HSL["BG_DEEP"][0], REFERENCE_HSL["BG_MID"][0]),
+    "mid_saturation_delta": REFERENCE_HSL["BG_MID"][1] - REFERENCE_HSL["BG_DEEP"][1],
+    "mid_lightness": REFERENCE_HSL["BG_MID"][2],
+}
+
+RUBY_NEUTRAL_MODEL = {
+    role: {
+        "hue_shift": signed_hue_delta(REFERENCE_HSL["BG_EDITOR"][0], REFERENCE_HSL[role][0]),
+        "saturation_scale": REFERENCE_HSL[role][1] / max(REFERENCE_HSL["BG_EDITOR"][1], 1),
+        "lightness": REFERENCE_HSL[role][2],
+    }
+    for role in ("FG_MUTED", "FG_MAIN", "FG_BRIGHT", "ANSI_DIM", "SHADOW")
+}
+
+NEUTRAL_SATURATION_LIMITS = {
+    "FG_MUTED": (14, 36),
+    "FG_MAIN": (8, 18),
+    "FG_BRIGHT": (12, 32),
+    "ANSI_DIM": (8, 18),
+    "SHADOW": (20, 100),
+}
+
+SURFACE_VALIDATION = {
+    "sidebar_editor_ratio": (1.06, 1.11),
+    "sidebar_editor_dlight": (0.02, 0.04),
+    "sidebar_editor_dchroma_max": 0.02,
+    "sidebar_editor_dhue_max": 4.0,
+    "editor_mid_ratio": (1.70, 1.90),
+    "editor_mid_dlight": (0.13, 0.19),
+    "editor_mid_dchroma": (0.028, 0.07),
+    "editor_mid_dhue_max": 8.0,
+    "selection_margin": 0.55,
+}
+
+TEXT_VALIDATION = {
+    "foreground": {"ratio": 4.5, "dlight": 0.18, "dchroma": 0.02, "dhue": 8.0},
+    "editor.foreground": {"ratio": 6.2, "dlight": 0.22, "dchroma": 0.02, "dhue": 8.0},
+    "descriptionForeground": {"ratio": 9.0, "dlight": 0.30, "dchroma": 0.02, "dhue": 8.0},
+    "button.background": {"ratio": 3.9, "dlight": 0.10, "dchroma": 0.04, "dhue": 10.0},
+    "editorWarning.foreground": {"ratio": 4.2, "dlight": 0.10, "dchroma": 0.03, "dhue": 10.0},
+    "editorInfo.foreground": {"ratio": 4.2, "dlight": 0.10, "dchroma": 0.03, "dhue": 10.0},
+    "editorError.foreground": {"ratio": 3.75, "dlight": 0.10, "dchroma": 0.03, "dhue": 10.0},
+}
+
+THEME_SPECS = {
     "Orange": {
-        "BG_DEEP":    "#432818", "BG_EDITOR":  "#582F0E", "BG_MID":     "#7F4F24", "FG_MUTED":   "#BB9457",
-        "ACCENT_PRI": "#D62828", "ACCENT_SEC": "#FFB703", "ACCENT_TER": "#219EBC", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#F77F00", "ERROR":      "#C1121F",
+        "surface_seed": "#3A261B",
+        "accent_primary": "#FB5607",
+        "accent_warning": "#FFBE0B",
+        "accent_info": "#4D8EFF",
+        "accent_added": "#56CFE1",
+        "accent_error": "#FF2D3B",
+        "accent_warm": "#FF9F1C",
     },
     "Red": {
-        "BG_DEEP":    "#370617", "BG_EDITOR":  "#6A040F", "BG_MID":     "#9D0208", "FG_MUTED":   "#CA6702",
-        "ACCENT_PRI": "#DC2F02", "ACCENT_SEC": "#FAA307", "ACCENT_TER": "#669BBC", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#F77F00", "ERROR":      "#C1121F",
+        "surface_seed": "#341A23",
+        "accent_primary": "#FF4D5A",
+        "accent_warning": "#F7B801",
+        "accent_info": "#3A86FF",
+        "accent_added": "#72E3FF",
+        "accent_error": "#FF2D3B",
+        "accent_warm": "#FB5607",
     },
     "Yellow": {
-        "BG_DEEP":    "#3A2A0B", "BG_EDITOR":  "#5B3D10", "BG_MID":     "#7C581B", "FG_MUTED":   "#A98467",
-        "ACCENT_PRI": "#C1121F", "ACCENT_SEC": "#FFC300", "ACCENT_TER": "#3A86FF", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#E09F3E", "ERROR":      "#D62828",
+        "surface_seed": "#47341B",
+        "accent_primary": "#FFBE0B",
+        "accent_warning": "#FFE45E",
+        "accent_info": "#7B8CFF",
+        "accent_added": "#72DDF7",
+        "accent_error": "#FF2D3B",
+        "accent_warm": "#F18701",
     },
     "Purple": {
-        "BG_DEEP":    "#3D348B", "BG_EDITOR":  "#4A3FA3", "BG_MID":     "#7678ED", "FG_MUTED":   "#B6A0FF",
-        "ACCENT_PRI": "#F35B04", "ACCENT_SEC": "#F7B801", "ACCENT_TER": "#7678ED", "ACCENT_QUA": "#4CC9F0", "ACCENT_OP":  "#F18701", "ERROR":      "#D62828",
+        "surface_seed": "#31284B",
+        "accent_primary": "#8B5CF6",
+        "accent_warning": "#F7B801",
+        "accent_info": "#4CC9F0",
+        "accent_added": "#C77DFF",
+        "accent_error": "#FF2D3B",
+        "accent_warm": "#F35B04",
     },
     "Green": {
-        "BG_DEEP":    "#001219", "BG_EDITOR":  "#005F73", "BG_MID":     "#0A9396", "FG_MUTED":   "#94D2BD",
-        "ACCENT_PRI": "#EE9B00", "ACCENT_SEC": "#E9D8A6", "ACCENT_TER": "#0A9396", "ACCENT_QUA": "#94D2BD", "ACCENT_OP":  "#CA6702", "ERROR":      "#9B2226",
+        "surface_seed": "#163639",
+        "accent_primary": "#2EC4B6",
+        "accent_warning": "#FFD166",
+        "accent_info": "#00A6FB",
+        "accent_added": "#80FFDB",
+        "accent_error": "#FF2D3B",
+        "accent_warm": "#FF9F1C",
     },
     "Blue": {
-        "BG_DEEP":    "#001D3D", "BG_EDITOR":  "#003566", "BG_MID":     "#014F86", "FG_MUTED":   "#8ECAE6",
-        "ACCENT_PRI": "#E63946", "ACCENT_SEC": "#FFB703", "ACCENT_TER": "#0077B6", "ACCENT_QUA": "#48CAE4", "ACCENT_OP":  "#FB8500", "ERROR":      "#D80032",
+        "surface_seed": "#1A2D4A",
+        "accent_primary": "#FF595E",
+        "accent_warning": "#FFD166",
+        "accent_info": "#00BBF9",
+        "accent_added": "#90E0EF",
+        "accent_error": "#FF2D3B",
+        "accent_warm": "#FB8500",
     },
     "Gray": {
-        "BG_DEEP":    "#2B2D42", "BG_EDITOR":  "#343A40", "BG_MID":     "#495057", "FG_MUTED":   "#8D99AE",
-        "ACCENT_PRI": "#FF595E", "ACCENT_SEC": "#EDF2F4", "ACCENT_TER": "#0077B6", "ACCENT_QUA": "#8ECAE6", "ACCENT_OP":  "#E63946", "ERROR":      "#E63946",
+        "surface_seed": "#2F3444",
+        "accent_primary": "#FF595E",
+        "accent_warning": "#FFCA3A",
+        "accent_info": "#5C7CFA",
+        "accent_added": "#72DDF7",
+        "accent_error": "#FF2D3B",
+        "accent_warm": "#FF9F1C",
     },
 }
 
 LIGHT_ACCENT_COLORS = {
-    "Orange":  "#FFE6D5", "Red":     "#FDF0D5", "Yellow":  "#F7E8D1",
-    "Purple":  "#E0AAFF", "Green":   "#94D2BD", "Blue":    "#F1FAEE", "Gray":    "#EDF2F4",
+    "Orange": "#FFE08A",
+    "Red": "#FFD6D9",
+    "Yellow": "#FFF0A8",
+    "Purple": "#DDD2FF",
+    "Green": "#C8FFF4",
+    "Blue": "#D1F1FF",
+    "Gray": "#D8E8FF",
 }
 
 
 # ─────────────────────────────────────────────────────────────
 #  GENERATION LOGIC
 # ─────────────────────────────────────────────────────────────
+def build_surface_roles(surface_seed):
+    surface_hue, surface_saturation, _ = hex_to_hsl(surface_seed)
+    surface_saturation = min(surface_saturation, RUBY_SURFACE_MODEL["deep_saturation_cap"])
 
-def build_color_map(palette):
-    bg_deep   = set_lightness(palette["BG_DEEP"], TARGET_L_DEEP)
-    bg_editor = set_lightness(palette["BG_EDITOR"], TARGET_L_EDITOR)
-    bg_mid    = set_lightness(palette["BG_MID"], TARGET_L_MID)
-
-    fg_main   = derive_fg_main(bg_editor)
-    fg_bright = derive_fg_bright(bg_editor)
-    shadow    = derive_shadow(bg_deep)
-    ansi_dim  = derive_ansi_dim(bg_editor)
+    bg_deep = hsl_to_hex(
+        surface_hue,
+        surface_saturation,
+        RUBY_SURFACE_MODEL["deep_lightness"],
+    )
+    bg_editor = hsl_to_hex(
+        shift_hue(surface_hue, RUBY_SURFACE_MODEL["editor_hue_shift"]),
+        clamp(surface_saturation + RUBY_SURFACE_MODEL["editor_saturation_delta"], 0, 100),
+        RUBY_SURFACE_MODEL["editor_lightness"],
+    )
+    bg_mid = hsl_to_hex(
+        shift_hue(surface_hue, RUBY_SURFACE_MODEL["mid_hue_shift"]),
+        clamp(surface_saturation + RUBY_SURFACE_MODEL["mid_saturation_delta"], 0, 100),
+        RUBY_SURFACE_MODEL["mid_lightness"],
+    )
+    bg_editor = tune_surface_contrast(
+        bg_editor,
+        bg_deep,
+        *SURFACE_VALIDATION["sidebar_editor_ratio"],
+    )
+    bg_mid = tune_surface_contrast(
+        bg_mid,
+        bg_editor,
+        *SURFACE_VALIDATION["editor_mid_ratio"],
+    )
+    bg_mid = tune_surface_chroma(
+        bg_mid,
+        bg_editor,
+        SURFACE_VALIDATION["editor_mid_dchroma"][1],
+        *SURFACE_VALIDATION["editor_mid_ratio"],
+    )
 
     return {
-        SOURCE_COLORS["BG_DEEP"]:    bg_deep,
-        SOURCE_COLORS["BG_EDITOR"]:  bg_editor,
-        SOURCE_COLORS["BG_MID"]:     bg_mid,
-        SOURCE_COLORS["FG_MUTED"]:   palette["FG_MUTED"],
-        SOURCE_COLORS["FG_MAIN"]:    fg_main,
-        SOURCE_COLORS["FG_BRIGHT"]:  fg_bright,
-        SOURCE_COLORS["ACCENT_PRI"]: palette["ACCENT_PRI"],
-        SOURCE_COLORS["ACCENT_SEC"]: palette["ACCENT_SEC"],
-        SOURCE_COLORS["ACCENT_TER"]: palette["ACCENT_TER"],
-        SOURCE_COLORS["ACCENT_QUA"]: palette["ACCENT_QUA"],
-        SOURCE_COLORS["ACCENT_OP"]:  palette["ACCENT_OP"],
-        SOURCE_COLORS["ERROR"]:      palette["ERROR"],
-        SOURCE_COLORS["SHADOW"]:     shadow,
-        SOURCE_COLORS["ANSI_DIM"]:   ansi_dim,
+        "BG_DEEP": bg_deep,
+        "BG_EDITOR": bg_editor,
+        "BG_MID": bg_mid,
+    }
+
+def derive_neutral_role(bg_editor_hex, role_name):
+    editor_hue, editor_saturation, _ = hex_to_hsl(bg_editor_hex)
+    role_model = RUBY_NEUTRAL_MODEL[role_name]
+    sat_min, sat_max = NEUTRAL_SATURATION_LIMITS[role_name]
+    saturation = clamp(editor_saturation * role_model["saturation_scale"], sat_min, sat_max)
+    return hsl_to_hex(
+        shift_hue(editor_hue, role_model["hue_shift"]),
+        saturation,
+        role_model["lightness"],
+    )
+
+def lift_until_contrast(color_hex, background_hex, minimum_ratio):
+    hue, saturation, lightness = hex_to_hsl(color_hex)
+    while contrast_ratio(color_hex, background_hex) < minimum_ratio and lightness < 96:
+        lightness += 1
+        color_hex = hsl_to_hex(hue, saturation, lightness)
+    return color_hex
+
+def tune_surface_contrast(color_hex, anchor_hex, minimum_ratio, maximum_ratio):
+    hue, saturation, lightness = hex_to_hsl(color_hex)
+    for _ in range(200):
+        ratio = contrast_ratio(color_hex, anchor_hex)
+        if minimum_ratio <= ratio <= maximum_ratio:
+            break
+        if ratio < minimum_ratio and lightness < 96:
+            lightness += 0.25
+        elif ratio > maximum_ratio and lightness > 0:
+            lightness -= 0.25
+        else:
+            break
+        color_hex = hsl_to_hex(hue, saturation, lightness)
+    return color_hex
+
+def tune_surface_chroma(color_hex, anchor_hex, maximum_dchroma, minimum_ratio, maximum_ratio):
+    hue, saturation, lightness = hex_to_hsl(color_hex)
+    for _ in range(200):
+        _, dchroma, _ = oklab_delta(color_hex, anchor_hex)
+        if dchroma <= maximum_dchroma or saturation <= 0:
+            break
+        saturation = max(0, saturation - 0.5)
+        color_hex = hsl_to_hex(hue, saturation, lightness)
+        color_hex = tune_surface_contrast(color_hex, anchor_hex, minimum_ratio, maximum_ratio)
+        hue, saturation, lightness = hex_to_hsl(color_hex)
+    return color_hex
+
+def build_role_palette(spec):
+    surfaces = build_surface_roles(spec["surface_seed"])
+    bg_editor = surfaces["BG_EDITOR"]
+    fg_muted = lift_until_contrast(
+        derive_neutral_role(bg_editor, "FG_MUTED"),
+        bg_editor,
+        TEXT_VALIDATION["foreground"]["ratio"],
+    )
+    fg_main = lift_until_contrast(
+        derive_neutral_role(bg_editor, "FG_MAIN"),
+        bg_editor,
+        TEXT_VALIDATION["editor.foreground"]["ratio"],
+    )
+    fg_bright = lift_until_contrast(
+        derive_neutral_role(bg_editor, "FG_BRIGHT"),
+        bg_editor,
+        TEXT_VALIDATION["descriptionForeground"]["ratio"],
+    )
+
+    return {
+        **surfaces,
+        "FG_MUTED": fg_muted,
+        "FG_MAIN": fg_main,
+        "FG_BRIGHT": fg_bright,
+        "ACCENT_PRI": spec["accent_primary"],
+        "ACCENT_SEC": spec["accent_warning"],
+        "ACCENT_TER": spec["accent_info"],
+        "ACCENT_QUA": spec["accent_added"],
+        "ACCENT_OP": spec.get("accent_warm", spec["accent_primary"]),
+        "ERROR": spec["accent_error"],
+        "SHADOW": derive_neutral_role(bg_editor, "SHADOW"),
+        "ANSI_DIM": derive_neutral_role(bg_editor, "ANSI_DIM"),
+    }
+
+def build_color_map(spec):
+    palette = build_role_palette(spec)
+    return {SOURCE_COLORS[key]: value for key, value in palette.items()}
+
+def validate_range(errors, label, value, lower, upper):
+    if value < lower or value > upper:
+        errors.append(f"{label}={value:.3f} outside {lower:.3f}..{upper:.3f}")
+
+def validate_theme(name, theme_data):
+    colors = theme_data["colors"]
+    errors = []
+
+    sidebar_background = colors["sideBar.background"]
+    editor_background = colors["editor.background"]
+    editor_selection = colors["editor.selectionBackground"]
+
+    surface_ratio = contrast_ratio(sidebar_background, editor_background)
+    surface_dlight, surface_dchroma, _ = oklab_delta(sidebar_background, editor_background)
+    surface_hue = hue_distance(hex_to_hsl(sidebar_background)[0], hex_to_hsl(editor_background)[0])
+
+    validate_range(
+        errors,
+        "sidebar/editor contrast",
+        surface_ratio,
+        *SURFACE_VALIDATION["sidebar_editor_ratio"],
+    )
+    validate_range(
+        errors,
+        "sidebar/editor OKLab dL",
+        surface_dlight,
+        *SURFACE_VALIDATION["sidebar_editor_dlight"],
+    )
+    if surface_dchroma > SURFACE_VALIDATION["sidebar_editor_dchroma_max"]:
+        errors.append(
+            f"sidebar/editor OKLab dC={surface_dchroma:.3f} above {SURFACE_VALIDATION['sidebar_editor_dchroma_max']:.3f}"
+        )
+    if surface_hue > SURFACE_VALIDATION["sidebar_editor_dhue_max"]:
+        errors.append(
+            f"sidebar/editor hue delta={surface_hue:.1f} above {SURFACE_VALIDATION['sidebar_editor_dhue_max']:.1f}"
+        )
+
+    selection_ratio = contrast_ratio(editor_background, editor_selection)
+    selection_dlight, selection_dchroma, _ = oklab_delta(editor_background, editor_selection)
+    selection_hue = hue_distance(hex_to_hsl(editor_background)[0], hex_to_hsl(editor_selection)[0])
+
+    validate_range(
+        errors,
+        "editor/selection contrast",
+        selection_ratio,
+        *SURFACE_VALIDATION["editor_mid_ratio"],
+    )
+    validate_range(
+        errors,
+        "editor/selection OKLab dL",
+        selection_dlight,
+        *SURFACE_VALIDATION["editor_mid_dlight"],
+    )
+    validate_range(
+        errors,
+        "editor/selection OKLab dC",
+        selection_dchroma,
+        *SURFACE_VALIDATION["editor_mid_dchroma"],
+    )
+    if selection_hue > SURFACE_VALIDATION["editor_mid_dhue_max"]:
+        errors.append(
+            f"editor/selection hue delta={selection_hue:.1f} above {SURFACE_VALIDATION['editor_mid_dhue_max']:.1f}"
+        )
+    if selection_ratio <= surface_ratio + SURFACE_VALIDATION["selection_margin"]:
+        errors.append(
+            "editor selection layer is not sufficiently stronger than the sidebar/editor separation"
+        )
+
+    for color_key, thresholds in TEXT_VALIDATION.items():
+        foreground = colors[color_key]
+        ratio = contrast_ratio(foreground, editor_background)
+        dlight, dchroma, _ = oklab_delta(foreground, editor_background)
+        hue = hue_distance(hex_to_hsl(foreground)[0], hex_to_hsl(editor_background)[0])
+
+        if ratio < thresholds["ratio"]:
+            errors.append(f"{color_key} contrast={ratio:.3f} below {thresholds['ratio']:.3f}")
+        if (
+            dlight < thresholds["dlight"]
+            and dchroma < thresholds["dchroma"]
+            and hue < thresholds["dhue"]
+        ):
+            errors.append(
+                f"{color_key} is not perceptually distinct enough from editor.background"
+            )
+
+    if errors:
+        joined = "\n  - ".join(errors)
+        raise ValueError(f"{name} failed validation:\n  - {joined}")
+
+    return {
+        "surface_ratio": surface_ratio,
+        "selection_ratio": selection_ratio,
+        "editor_fg_ratio": contrast_ratio(colors["editor.foreground"], editor_background),
+        "info_ratio": contrast_ratio(colors["editorInfo.foreground"], editor_background),
     }
 
 def apply_color_map(source_json_str, color_map):
@@ -172,8 +502,8 @@ def clean_json(content):
     content = re.sub(r',\s*([}\]])', r'\1', content)
     return content
 
-def generate_theme(source_str, name, palette, light_accent=None):
-    color_map = build_color_map(palette)
+def generate_theme(source_str, name, spec, light_accent=None):
+    color_map = build_color_map(spec)
     themed_str = apply_color_map(source_str, color_map)
     clean = clean_json(themed_str)
     
@@ -196,11 +526,13 @@ def generate_theme(source_str, name, palette, light_accent=None):
         colors["editor.selectionHighlightBackground"] = la + "15"
         theme_data["colors"] = colors
 
-    return json.dumps(theme_data, indent=2) + "\n"
+    metrics = validate_theme(name, theme_data)
+    return json.dumps(theme_data, indent=2) + "\n", metrics
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    source_path = os.path.join(script_dir, "themes", "rubysea-color-theme.json")
+    source_path = os.path.join(script_dir, "themes", "color-sea-template.json")
+    template_filename = os.path.basename(source_path)
     
     # 1. READ SOURCE (but do not edit specific file)
     print(f"📖 Reading source template: {source_path}")
@@ -210,7 +542,7 @@ def main():
     themes_dir = os.path.join(script_dir, "themes")
     os.makedirs(themes_dir, exist_ok=True)
 
-    # 2. ClEANUP OLD FILES (dark/, light/, and old theme files)
+    # 2. CLEAN UP OLD FILES (dark/, light/, and generated theme files)
     for old_dir in ["dark", "light"]:
         odir = os.path.join(script_dir, old_dir)
         if os.path.isdir(odir):
@@ -218,8 +550,10 @@ def main():
             shutil.rmtree(odir)
             print(f"🗑️  Removed {old_dir}/ directory")
 
-    # Remove generated files in themes/ to avoid duplicates, BUT KEEP RUBY SEA SOURCE
+    # Remove generated files in themes/ to avoid duplicates, but keep the template source.
     for f in os.listdir(themes_dir):
+        if f == template_filename:
+            continue
         if f.startswith("color-sea-") and f.endswith(".json"):
             os.remove(os.path.join(themes_dir, f))
 
@@ -227,17 +561,25 @@ def main():
     print(f"\n🎨 Generating {DISPLAY_NAME} themes...")
     generated_themes = []
 
-    for color_name, palette in DARK_PALETTES.items():
+    for color_name, spec in THEME_SPECS.items():
         theme_label = f"{DISPLAY_NAME} {color_name}"
         filename    = f"color-sea-{color_name.lower()}.json"
         filepath    = os.path.join(themes_dir, filename)
         light_accent = LIGHT_ACCENT_COLORS.get(color_name)
 
         print(f"  → {theme_label}")
-        theme_json = generate_theme(source_str, theme_label, palette, light_accent)
+        theme_json, metrics = generate_theme(source_str, theme_label, spec, light_accent)
         
         with open(filepath, "w") as f:
             f.write(theme_json)
+
+        print(
+            "     "
+            f"surface={metrics['surface_ratio']:.3f} "
+            f"selection={metrics['selection_ratio']:.3f} "
+            f"editor-fg={metrics['editor_fg_ratio']:.3f} "
+            f"info={metrics['info_ratio']:.3f}"
+        )
         
         generated_themes.append({
             "label": theme_label,
@@ -259,7 +601,7 @@ def main():
     pkg["homepage"] = f"{REPO_URL}/blob/main/README.md"
     pkg["bugs"]["url"] = f"{REPO_URL}/issues"
 
-    # Only include generated themes (Ruby Sea source is excluded)
+    # Only include generated themes (the template source is excluded)
     pkg["contributes"]["themes"] = generated_themes
 
     with open(pkg_path, "w") as f:
@@ -272,10 +614,7 @@ def main():
     print(f"   Publisher: {pkg['publisher']}")
     print(f"   Themes: {len(generated_themes)}")
 
-    # 5. RENAME SOURCE FILE TO AVOID CONFUSION (Optional, but good practice)
-    # We'll just leave it as is for now, as it's not contributing to the package.
-
-    print("\n🎉 Refactor complete! Ready to package.")
+    print("\n🎉 Generation complete! Ready to package.")
 
 if __name__ == "__main__":
     main()
